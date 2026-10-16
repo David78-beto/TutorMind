@@ -1,8 +1,8 @@
 # Tutor Virtual Adaptativo (TutorMind AI)
 
-Plataforma web de tutoría virtual con inteligencia artificial para apoyar el aprendizaje autónomo de estudiantes de básica secundaria y media (grados 6° a 11°) del Colegio Rogelio Salmona, en Bogotá. El tutor adapta sus explicaciones al perfil de aprendizaje de cada estudiante y guarda el historial por sesiones.
+Plataforma web de tutoría virtual con inteligencia artificial que adapta sus explicaciones al estilo de aprendizaje de cada estudiante universitario. Detecta señales de comprensión y frustración, guarda el historial por sesiones y le permite al profesor hacer seguimiento de sus estudiantes.
 
-Proyecto de la asignatura **Proyecto**, Ingeniería de Software, UNINPAHU. Docente: BRAYAN SEBASTIAN SALAS RICO.
+Proyecto de la asignatura **Proyecto**, Ingeniería de Software, UNINPAHU. Docente: Brayan Sebastián Salas Rico.
 
 ## Integrantes
 
@@ -73,7 +73,7 @@ uvicorn main:app --reload
 
 La API queda en `http://localhost:8000`. Documentación interactiva en `http://localhost:8000/docs`.
 
-Ejecuta `uvicorn` desde la carpeta `backend` para que la base de datos se cree en el lugar correcto.
+Ejecuta `uvicorn` desde la carpeta `backend` para que la base de datos se cree en el lugar correcto. En Windows también puedes usar `start-backend.bat`.
 
 ### 3. Frontend
 
@@ -127,14 +127,11 @@ Abre `http://localhost:4200`.
 | DELETE | `/api/teachers/{teacher_id}/students/{enrollment_id}` | Desvincular estudiante |
 | GET | `/api/health` | Estado del servicio |
 
-## Estado del proyecto
+## Limitaciones conocidas
 
-Es un prototipo. Lo siguiente está planteado en el diseño pero aún no implementado:
-
-- Organización de las sesiones por cursos y curva de progreso por curso.
-- Memoria persistente basada en embeddings (RAG) para recuperar el historial del estudiante.
-- Autenticación con token en cada solicitud.
-- Cambio de proveedor de IA sin modificar el resto del sistema.
+- La API no usa tokens (JWT): confía en el id de usuario que llega en la URL.
+- La base de datos es SQLite, pensada para desarrollo y pocos usuarios.
+- Por ahora solo se ejecuta en local.
 
 ## Despliegue
 
@@ -144,4 +141,3 @@ Por ahora el sistema se ejecuta de forma local. No hay servicio en la nube defin
 
 - El login usa correo y contraseña. Las contraseñas se guardan con hash.
 - Si Gemini no responde, verifica `GEMINI_API_KEY` y que el modelo configurado siga disponible.
-- El tratamiento de datos personales debe cumplir la Ley 1581 de 2012.
