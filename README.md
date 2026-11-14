@@ -40,10 +40,19 @@ tutormind/
 │   ├── routers/        # users, chat, profile, teachers
 │   └── ...
 ├── frontend/           # App Angular
+├── docs/               # Documento técnico (Word y PDF)
 ├── .env.example        # Plantilla de variables de entorno
+├── iniciar.bat         # Arranca backend + frontend y abre el navegador (Windows)
 ├── start-backend.bat   # Arranque del backend en Windows
 └── README.md
 ```
+
+## Documentación
+
+El documento técnico del proyecto (requerimientos, stack, arquitectura, MER, BPMN, modelo C4 y trazabilidad) está en la carpeta [`docs/`](docs/):
+
+- [TutorMind_Documento_Tecnico.pdf](docs/TutorMind_Documento_Tecnico.pdf) (se puede leer directamente en GitHub)
+- [TutorMind_Documento_Tecnico.docx](docs/TutorMind_Documento_Tecnico.docx) (versión editable)
 
 ## Requisitos
 
@@ -73,7 +82,7 @@ uvicorn main:app --reload
 
 La API queda en `http://localhost:8000`. Documentación interactiva en `http://localhost:8000/docs`.
 
-Ejecuta `uvicorn` desde la carpeta `backend` para que la base de datos se cree en el lugar correcto. En Windows también puedes usar `start-backend.bat`.
+Ejecuta `uvicorn` desde la carpeta `backend` para que la base de datos se cree en el lugar correcto. En Windows también puedes usar `start-backend.bat`, o `iniciar.bat` para arrancar backend y frontend a la vez y abrir el navegador.
 
 ### 3. Frontend
 
