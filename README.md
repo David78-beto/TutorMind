@@ -17,7 +17,7 @@ Proyecto de la asignatura **Proyecto**, Ingeniería de Software, UNINPAHU. Docen
 | Frontend | Angular 17 (standalone components) |
 | Backend | Python + FastAPI |
 | Base de datos | SQLite + SQLAlchemy |
-| IA generativa | Google Gemini (`gemini-1.5-flash` por defecto) |
+| IA generativa | Google Gemini (`gemini-3.5-flash-lite` por defecto) |
 | Streaming | Server-Sent Events (SSE) |
 | Seguridad | Contraseñas con PBKDF2-SHA256, CORS configurable |
 | Control de versiones | Git y GitHub |
@@ -90,8 +90,8 @@ Abre `http://localhost:4200`.
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
 | `GEMINI_API_KEY` | Clave de la API de Gemini (secreta, no publicar) | `tu_clave_de_google_ai_studio` |
-| `GEMINI_MODEL` | Modelo de Gemini a usar | `gemini-1.5-flash` |
-| `GEMINI_ALLOWED_MODELS` | Modelos permitidos, separados por coma | `gemini-1.5-flash,gemini-1.5-flash-8b` |
+| `GEMINI_MODEL` | Modelo de Gemini a usar | `gemini-3.5-flash-lite` |
+| `GEMINI_ALLOWED_MODELS` | Modelos permitidos, separados por coma | `gemini-3.5-flash-lite` |
 | `DATABASE_URL` | Cadena de conexión de la base de datos | `sqlite:///./tutormind.db` |
 | `ALLOWED_ORIGINS` | Orígenes permitidos por CORS | `http://localhost:4200` |
 

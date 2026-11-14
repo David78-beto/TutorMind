@@ -12,14 +12,14 @@ if _api_key:
     genai.configure(api_key=_api_key)
 
 # Free-tier friendly defaults
-MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
 # For free tier, keep this restricted to Flash models only.
 ALLOWED_MODELS = [
     m.strip()
     for m in os.getenv(
         "GEMINI_ALLOWED_MODELS",
-        "gemini-1.5-flash,gemini-1.5-flash-8b",
+        "gemini-3.5-flash-lite",
     ).split(",")
     if m.strip()
 ]
