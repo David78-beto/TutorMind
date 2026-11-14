@@ -23,14 +23,84 @@
       </div>
       <button type="button" class="logout-btn" (click)="logout()">Cerrar sesión</button>
 
+      <div class="sessions-list">
+        <div class="sessions-head">
+          <h4>Mis sesiones</h4>
+          <span class="sessions-count">{{ sessions.length }}</span>
+        </div>
+
+        @if (creatingSession) {
+          <form class="new-session-form" (ngSubmit)="confirmNewSession()">
+            <input
+              #newSessionInput
+              type="text"
+              name="newSessionName"
+              [(ngModel)]="newSessionName"
+              maxlength="60"
+              placeholder="¿Qué vas a estudiar? Ej. Python"
+              (keydown.escape)="cancelNewSession()"
+            />
+            <div class="new-session-actions">
+              <button type="submit" class="btn-mini btn-mini--primary">Crear</button>
+              <button type="button" class="btn-mini" (click)="cancelNewSession()">Cancelar</button>
+            </div>
+            <small>Si lo dejas vacío, la IA le pondrá nombre con tu primera pregunta.</small>
+          </form>
+        } @else {
+          <button type="button" class="new-session" (click)="startNewSession()">
+            + Nueva sesión
+          </button>
+        }
+
+        @for (s of sessions; track s.id) {
+          <div
+            class="session-item"
+            [class.active]="s.id === sessionId"
+            [class.editing]="editingSessionId === s.id"
+            (click)="selectSession(s.id)"
+          >
+            <span class="session-icon">{{ subjectIcon(s.subject) }}</span>
+            <span class="session-body">
+              @if (editingSessionId === s.id) {
+                <input
+                  #renameInput
+                  type="text"
+                  class="session-rename"
+                  [(ngModel)]="editingName"
+                  maxlength="60"
+                  (click)="$event.stopPropagation()"
+                  (keydown.enter)="saveRename(s)"
+                  (keydown.escape)="cancelRename()"
+                  (blur)="saveRename(s)"
+                />
+              } @else {
+                <span class="session-subject" (dblclick)="startRename(s, $event)" [title]="s.subject">
+                  {{ s.subject }}
+                </span>
+              }
+              <span class="session-meta">
+                {{ relativeTime(s.last_activity || s.started_at) }} · {{ s.message_count }} msgs
+              </span>
+            </span>
+            @if (editingSessionId !== s.id) {
+              <span class="session-actions">
+                <button type="button" class="icon-btn" title="Renombrar" (click)="startRename(s, $event)">✏️</button>
+                <button type="button" class="icon-btn" title="Eliminar" (click)="deleteSession(s, $event)">🗑</button>
+              </span>
+            }
+          </div>
+        }
+      </div>
+
+      <details class="fold" open>
+        <summary>Tu perfil de aprendizaje</summary>
       <section class="profile-panel">
-        <h3>Tu perfil de aprendizaje</h3>
         @if (profileService.profile(); as profile) {
           <span class="badge-style">
             {{ profileService.getLearningStyleLabel(profile.learning_style) }}
           </span>
 
-          @if (profile.mastered_topics?.length) {
+          @if (profile.mastered_topics.length) {
             <div class="chips-group">
               <label>Dominados</label>
               <div class="chips">
@@ -66,9 +136,11 @@
           </div>
         }
       </section>
+      </details>
 
+      <details class="fold">
+        <summary>Estadísticas y temas</summary>
       <section class="stats-panel">
-        <h3>Estadísticas</h3>
         @if (profileService.stats(); as stats) {
           <app-bar-chart title="Señales de aprendizaje" [items]="stats.event_bars" />
 
@@ -99,38 +171,16 @@
           }
         }
       </section>
+      </details>
 
-      <div class="sessions-list">
-        <h4>Sesiones</h4>
-        @for (s of sessions; track s.id) {
-          <button
-            type="button"
-            class="session-item"
-            [class.active]="s.id === sessionId"
-            (click)="selectSession(s.id)"
-          >
-            <span class="session-row">
-              <span class="session-subject">{{ s.subject }}</span>
-              <span class="session-delete" (click)="deleteSession(s.id, $event)">🗑</span>
-            </span>
-            <span class="session-meta">{{ s.message_count }} msgs</span>
-          </button>
-        }
-        <button type="button" class="new-session" (click)="newSession()">
-          + Nueva sesión
-        </button>
-      </div>
     </aside>
 
     <main class="chat-main">
       <header class="chat-header">
-        <input
-          type="text"
-          class="subject-input"
-          [(ngModel)]="sessionSubject"
-          (blur)="onSubjectBlur()"
-          placeholder="¿Qué vas a estudiar hoy?"
-        />
+        <h2 class="subject-title" [title]="sessionSubject">
+          <span class="subject-icon">{{ subjectIcon(sessionSubject) }}</span>
+          <span class="subject-text">{{ sessionSubject || 'Nueva sesión' }}</span>
+        </h2>
         <span class="session-badge">
           <span class="pulse-dot"></span>
           Sesión activa

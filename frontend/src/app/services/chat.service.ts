@@ -75,6 +75,11 @@ function parseSseBlock(block: string): SseBlockResult {
     return { kind: 'error', message: String(msg) };
   }
 
+  // Other named events (e.g. session-title) are not part of the answer text.
+  if (eventType !== 'message') {
+    return { kind: 'noop' };
+  }
+
   if (data) {
     let chunk = data;
     try {

@@ -45,6 +45,7 @@ export interface ChatSession {
   ended_at?: string;
   message_count: number;
   topic_summary?: string;
+  last_activity?: string;
 }
 
 export interface ChatMessage {

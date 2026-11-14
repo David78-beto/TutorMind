@@ -36,6 +36,13 @@ def _topic_status(
     )
 
 
+PLACEHOLDER_TOPICS = {"nueva sesión", "nueva sesion", "sin tema", "tema no definido"}
+
+
+def is_placeholder_topic(topic: str) -> bool:
+    return (topic or "").strip().lower() in PLACEHOLDER_TOPICS
+
+
 def build_topic_insights(
     db: Session,
     user_id: int,
@@ -60,13 +67,17 @@ def build_topic_insights(
     )
     for event in events:
         topic = (event.topic or "").strip()
-        if not topic:
+        if not topic or is_placeholder_topic(topic):
             continue
         key = event.event_type
         if key in by_topic[topic]:
             by_topic[topic][key] += 1
 
-    topics = set(frustration_topics) | mastered_topics | set(by_topic.keys())
+    topics = {
+        t
+        for t in set(frustration_topics) | mastered_topics | set(by_topic.keys())
+        if t and not is_placeholder_topic(t)
+    }
     insights: list[TopicInsight] = []
 
     for topic in sorted(topics):

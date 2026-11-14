@@ -72,6 +72,7 @@ class SessionResponse(BaseModel):
     ended_at: Optional[datetime] = None
     message_count: int
     topic_summary: Optional[str] = None
+    last_activity: Optional[datetime] = None
 
     class Config:
         from_attributes = True

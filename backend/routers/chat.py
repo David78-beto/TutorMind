@@ -4,10 +4,11 @@ from typing import Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, get_db
-from gemini_client import stream_chat
+from gemini_client import generate_session_title, is_default_subject, stream_chat
 from memory_manager import (
     extract_and_update_signals,
     get_conversation_history,
@@ -139,6 +140,13 @@ def _sse_generator_body(
         session.message_count = (session.message_count or 0) + 1
         db.commit()
 
+        # Name the session automatically from its first question if the student
+        # did not give it a name.
+        if is_default_subject(session.subject):
+            session.subject = generate_session_title(message)
+            db.commit()
+            yield f"event: session-title\ndata: {json.dumps(session.subject)}\n\n"
+
         yield "event: done\ndata: {}\n\n"
     except Exception as exc:
         detail = str(exc)
@@ -208,13 +216,23 @@ def create_session(
 
 @router.get("/{user_id}/sessions", response_model=list[SessionResponse])
 def list_sessions(user_id: int, db: Session = Depends(get_db)):
-    sessions = (
-        db.query(ChatSession)
+    sessions = db.query(ChatSession).filter(ChatSession.user_id == user_id).all()
+    last_by_session = dict(
+        db.query(Message.session_id, func.max(Message.timestamp))
+        .join(ChatSession, Message.session_id == ChatSession.id)
         .filter(ChatSession.user_id == user_id)
-        .order_by(ChatSession.started_at.desc())
+        .group_by(Message.session_id)
         .all()
     )
-    return sessions
+
+    result = []
+    for s in sessions:
+        item = SessionResponse.model_validate(s)
+        item.last_activity = last_by_session.get(s.id) or s.started_at
+        result.append(item)
+    # Most recently used first.
+    result.sort(key=lambda x: x.last_activity or datetime.min, reverse=True)
+    return result
 
 
 @router.patch("/{user_id}/session/{session_id}", response_model=SessionResponse)

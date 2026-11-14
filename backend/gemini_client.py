@@ -142,3 +142,44 @@ def stream_chat(
     raise RuntimeError(
         "No se pudo generar respuesta con los modelos disponibles de Gemini."
     ) from last_error
+
+
+DEFAULT_SESSION_SUBJECTS = {"", "nueva sesión", "nueva sesion"}
+
+
+def is_default_subject(subject: Optional[str]) -> bool:
+    return (subject or "").strip().lower() in DEFAULT_SESSION_SUBJECTS
+
+
+def _fallback_title(user_message: str) -> str:
+    words = re.sub(r"[¿?¡!.,;:]", " ", user_message or "").split()
+    title = " ".join(words[:5]).strip()
+    if not title:
+        return "Sesión de estudio"
+    title = title[0].upper() + title[1:]
+    return title[:40]
+
+
+def generate_session_title(user_message: str) -> str:
+    """Short study-topic title (2-5 words) for a session, from its first message.
+
+    Uses a quick non-streaming Gemini call with a timeout; falls back to the
+    first words of the message so a slow/failed call never blocks the chat.
+    """
+    if not _api_key:
+        return _fallback_title(user_message)
+    prompt = (
+        "Genera un título corto (2 a 5 palabras, en español) que describa el tema de "
+        "estudio de este mensaje de un estudiante. Responde SOLO con el título, sin "
+        "comillas, sin punto final y sin emojis.\n\n"
+        f"Mensaje: {user_message[:500]}"
+    )
+    try:
+        model = genai.GenerativeModel(model_name=MODEL_NAME)
+        response = model.generate_content(prompt, request_options={"timeout": 8})
+        title = (response.text or "").strip().splitlines()[0].strip(" \"'.*#")
+        if 2 <= len(title) <= 60:
+            return title
+    except Exception:
+        pass
+    return _fallback_title(user_message)

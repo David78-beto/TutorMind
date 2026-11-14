@@ -49,7 +49,28 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   examFeedback = '';
   examResults: boolean[] = [];
   examLoading = false;
+  creatingSession = false;
+  newSessionName = '';
+  editingSessionId = 0;
+  editingName = '';
   private shouldScroll = false;
+
+  private readonly subjectIcons: Array<[RegExp, string]> = [
+    [/python/i, '🐍'],
+    [/java(?!script)/i, '☕'],
+    [/javascript|typescript|\bjs\b|\bts\b|angular|react|html|css|web/i, '🌐'],
+    [/sql|base(s)? de datos|database/i, '🗄️'],
+    [/matem|cálculo|calculo|álgebra|algebra|derivad|integral|matriz|matrices|estad[ií]stic|probabilidad|geometr/i, '🧮'],
+    [/c\+\+|c#|(?:^|\s)c(?:\s|$)|programaci|código|codigo|algoritm/i, '💻'],
+    [/f[ií]sica/i, '⚛️'],
+    [/qu[ií]mica/i, '🧪'],
+    [/biolog|fotos[ií]ntesis|célula|celula|gen[eé]tica/i, '🧬'],
+    [/historia|revoluci|guerra/i, '🏛️'],
+    [/ingl[eé]s|english|idioma|franc[eé]s/i, '🗣️'],
+    [/econom|finanz|contab/i, '📈'],
+    [/redes|network|ciberseg|seguridad/i, '🔐'],
+    [/software|uml|requisit|scrum|proyecto/i, '🛠️'],
+  ];
 
   suggestions = [
     'Explícame derivadas parciales',
@@ -132,8 +153,8 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  newSession(): void {
-    this.chatService.createSession(this.userId).subscribe({
+  newSession(subject?: string): void {
+    this.chatService.createSession(this.userId, subject).subscribe({
       next: (session) => {
         this.sessions = [session, ...this.sessions];
         this.selectSession(session.id);
@@ -157,9 +178,93 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.profileService.loadStats(this.userId, id).subscribe();
   }
 
-  deleteSession(id: number, event: MouseEvent): void {
+  startNewSession(): void {
+    this.creatingSession = true;
+    this.newSessionName = '';
+    setTimeout(() =>
+      (document.querySelector('.new-session-form input') as HTMLInputElement | null)?.focus()
+    );
+  }
+
+  confirmNewSession(): void {
+    const name = this.newSessionName.trim();
+    this.creatingSession = false;
+    this.newSessionName = '';
+    this.newSession(name || undefined);
+    setTimeout(() => this.messageInput?.nativeElement.focus());
+  }
+
+  cancelNewSession(): void {
+    this.creatingSession = false;
+    this.newSessionName = '';
+  }
+
+  startRename(session: ChatSession, event: Event): void {
     event.stopPropagation();
-    const ok = confirm('¿Seguro que quieres eliminar esta sesión? Esta acción no se puede deshacer.');
+    this.editingSessionId = session.id;
+    this.editingName = session.subject;
+    setTimeout(() => {
+      const el = document.querySelector('.session-rename') as HTMLInputElement | null;
+      el?.focus();
+      el?.select();
+    });
+  }
+
+  cancelRename(): void {
+    this.editingSessionId = 0;
+    this.editingName = '';
+  }
+
+  saveRename(session: ChatSession): void {
+    if (this.editingSessionId !== session.id) return; // already handled (Enter + blur)
+    const name = this.editingName.trim();
+    this.cancelRename();
+    if (!name || name === session.subject) return;
+    session.subject = name;
+    if (session.id === this.sessionId) this.sessionSubject = name;
+    this.chatService.updateSessionSubject(this.userId, session.id, name).subscribe({
+      next: (updated) => this.replaceSession(updated),
+    });
+  }
+
+  private replaceSession(updated: ChatSession): void {
+    const idx = this.sessions.findIndex((x) => x.id === updated.id);
+    if (idx >= 0) {
+      this.sessions[idx] = { ...this.sessions[idx], ...updated, last_activity: this.sessions[idx].last_activity };
+    }
+  }
+
+  subjectIcon(subject?: string): string {
+    const text = subject || '';
+    for (const [pattern, icon] of this.subjectIcons) {
+      if (pattern.test(text)) return icon;
+    }
+    return '📘';
+  }
+
+  relativeTime(value?: string): string {
+    if (!value) return '';
+    // The backend stores UTC without a timezone suffix.
+    const iso = /[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : value + 'Z';
+    const date = new Date(iso);
+    const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (isNaN(diffMin)) return '';
+    if (diffMin < 1) return 'ahora';
+    if (diffMin < 60) return `hace ${diffMin} min`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `hace ${diffH} h`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD === 1) return 'ayer';
+    if (diffD < 7) return `hace ${diffD} días`;
+    return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  }
+
+  deleteSession(session: ChatSession, event: MouseEvent): void {
+    event.stopPropagation();
+    const id = session.id;
+    const ok = confirm(
+      `¿Eliminar la sesión "${session.subject}"? Se borrarán sus ${session.message_count} mensajes y no se puede deshacer.`
+    );
     if (!ok) return;
 
     this.chatService.deleteSession(this.userId, id).subscribe({
@@ -177,18 +282,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.loadSessions();
       },
     });
-  }
-
-  onSubjectBlur(): void {
-    if (!this.sessionId || !this.sessionSubject.trim()) return;
-    this.chatService
-      .updateSessionSubject(this.userId, this.sessionId, this.sessionSubject.trim())
-      .subscribe({
-        next: (s) => {
-          const idx = this.sessions.findIndex((x) => x.id === s.id);
-          if (idx >= 0) this.sessions[idx] = s;
-        },
-      });
   }
 
   useSuggestion(text: string): void {
