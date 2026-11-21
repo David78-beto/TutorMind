@@ -1,6 +1,7 @@
 import json
+import re
 from datetime import datetime
-from typing import Generator
+from typing import Generator, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, get_db
 from gemini_client import generate_session_title, is_default_subject, stream_chat
 from memory_manager import (
+    SIGNAL_PATTERN,
     extract_and_update_signals,
     get_conversation_history,
     get_session_context,
@@ -39,6 +41,24 @@ def _collect_stream_text(system_prompt: str, history: list[dict], user_message: 
     for chunk in stream_chat(system_prompt, history, user_message):
         full += chunk
     return full.strip()
+
+
+def _parse_exam_json(raw: str) -> Optional[dict]:
+    """Read the exam JSON even if the model adds a [SIGNAL] line, ``` fences or extra text."""
+    text = SIGNAL_PATTERN.sub("", raw or "").strip()
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE).strip()
+    candidates = [text]
+    start, end = text.find("{"), text.rfind("}")
+    if start >= 0 and end > start:
+        candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            return data
+    return None
 
 
 def _safe_yield_text(accumulated: str, previously_yielded: str) -> tuple[str, str]:
@@ -314,7 +334,24 @@ def generate_exam(
 
     q_count = max(3, min(10, payload.question_count))
     session_context = get_session_context(db, user_id)
-    system_prompt = build_system_prompt(user, profile, session_context, message_count=0)
+    session_subject = ""
+    if payload.session_id:
+        exam_session = (
+            db.query(ChatSession)
+            .filter(ChatSession.id == payload.session_id, ChatSession.user_id == user_id)
+            .first()
+        )
+        if exam_session:
+            session_subject = exam_session.subject or ""
+    # The exam needs pure JSON, so the hidden [SIGNAL] line is not requested here.
+    system_prompt = build_system_prompt(
+        user,
+        profile,
+        session_context,
+        message_count=0,
+        session_subject=session_subject,
+        include_signal=False,
+    )
     instructions = (
         f"Genera un mini parcial TIPO TEST de {q_count} preguntas para {user.name} basado en los temas "
         "estudiados en sesiones recientes. Formato estricto JSON con: "
@@ -322,10 +359,13 @@ def generate_exam(
         "Reglas: options siempre de 4 elementos, correct_index entre 0 y 3, explanation corta y clara. "
         "No incluyas markdown ni texto extra."
     )
-    raw = _collect_stream_text(system_prompt, [], instructions)
     try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
+        raw = _collect_stream_text(system_prompt, [], instructions)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"No se pudo contactar a la IA: {exc}")
+    parsed = _parse_exam_json(raw)
+    if parsed is None:
+        print(f"[exam] Respuesta de la IA no válida como JSON: {raw[:500]!r}")
         raise HTTPException(
             status_code=500, detail="No se pudo generar el parcial en formato válido."
         )

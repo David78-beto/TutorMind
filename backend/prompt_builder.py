@@ -56,6 +56,7 @@ def build_system_prompt(
     session_context: str = "",
     message_count: int = 0,
     session_subject: str = "",
+    include_signal: bool = True,
 ) -> str:
     style = profile.learning_style or "unknown"
     personality = profile.personality_type or "neutral"
@@ -138,4 +139,4 @@ Universidad: {user.university or 'No especificada'}
 3. Al final de explicaciones largas, haz una pregunta de verificación.
 4. Responde en español salvo que el estudiante pida otro idioma.
 5. Sé conciso pero completo; prioriza la comprensión sobre la extensión.
-{SIGNAL_INSTRUCTION}"""
+{SIGNAL_INSTRUCTION if include_signal else ""}"""
