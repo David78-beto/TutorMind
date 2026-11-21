@@ -49,6 +49,8 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   examFeedback = '';
   examResults: boolean[] = [];
   examLoading = false;
+  examOpen = false;
+  examError = '';
   creatingSession = false;
   newSessionName = '';
   editingSessionId = 0;
@@ -290,22 +292,38 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   generateExam(): void {
-    if (!this.sessionId || this.examLoading) return;
-    this.examLoading = true;
+    if (this.examLoading) return;
+    this.examOpen = true;
     this.exam = null;
     this.examScore = null;
     this.examFeedback = '';
+    this.examResults = [];
+    this.examError = '';
+    if (!this.sessionId) {
+      this.examError = 'Primero crea una sesión y estudia un tema con el tutor.';
+      return;
+    }
+    this.examLoading = true;
     this.chatService.generateExam(this.userId, this.sessionId).subscribe({
       next: (exam) => {
         this.exam = exam;
         this.examAnswers = exam.questions.map(() => -1);
-        this.examResults = [];
         this.examLoading = false;
       },
-      error: () => {
+      error: (err) => {
         this.examLoading = false;
+        this.examError =
+          err?.error?.detail || 'No se pudo generar el parcial. Inténtalo de nuevo en unos segundos.';
       },
     });
+  }
+
+  closeExam(): void {
+    this.examOpen = false;
+  }
+
+  get examAnsweredCount(): number {
+    return this.examAnswers.filter((a) => a >= 0).length;
   }
 
   submitExam(): void {
@@ -332,6 +350,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   chooseExamOption(questionIndex: number, optionIndex: number): void {
+    if (this.examResults.length) return;
     this.examAnswers[questionIndex] = optionIndex;
   }
 

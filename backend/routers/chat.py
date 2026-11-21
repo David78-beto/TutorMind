@@ -343,6 +343,20 @@ def generate_exam(
         )
         if exam_session:
             session_subject = exam_session.subject or ""
+
+    # The exam is about what was actually studied in this session's conversation.
+    conversation = (
+        get_conversation_history(db, payload.session_id, limit=40) if payload.session_id else []
+    )
+    if not any(m["role"] == "assistant" for m in conversation):
+        raise HTTPException(
+            status_code=400,
+            detail="Aún no hay temas vistos en esta sesión. Estudia un tema con el tutor y luego genera el parcial.",
+        )
+    transcript = "\n\n".join(
+        f"{'Estudiante' if m['role'] == 'user' else 'Tutor'}: {m['content'][:1500]}"
+        for m in conversation
+    )
     # The exam needs pure JSON, so the hidden [SIGNAL] line is not requested here.
     system_prompt = build_system_prompt(
         user,
@@ -353,8 +367,13 @@ def generate_exam(
         include_signal=False,
     )
     instructions = (
-        f"Genera un mini parcial TIPO TEST de {q_count} preguntas para {user.name} basado en los temas "
-        "estudiados en sesiones recientes. Formato estricto JSON con: "
+        f"Genera un mini parcial TIPO TEST de {q_count} preguntas para {user.name} SOLO sobre lo que "
+        "se explicó en esta conversación de estudio (no incluyas temas que no aparezcan en ella). "
+        "Reparte las preguntas entre los distintos temas vistos. Evalúa los CONCEPTOS explicados "
+        "(definiciones, ejemplos, qué hace un código, qué imprime, cuándo usar algo); no preguntes "
+        "por la conversación en sí (por ejemplo, 'qué analogía usó el tutor').\n\n"
+        f"=== CONVERSACIÓN DE LA SESIÓN ===\n{transcript}\n=== FIN DE LA CONVERSACIÓN ===\n\n"
+        "Formato estricto JSON con: "
         '{"title":"...","instructions":"...","questions":[{"id":1,"question":"...","options":["A","B","C","D"],"correct_index":1,"explanation":"..."}]}. '
         "Reglas: options siempre de 4 elementos, correct_index entre 0 y 3, explanation corta y clara. "
         "No incluyas markdown ni texto extra."

@@ -190,12 +190,32 @@
         </button>
       </header>
 
-      @if (exam; as e) {
-        <section class="exam-panel">
-          <h3>{{ e.title }}</h3>
-          <p>{{ e.instructions }}</p>
+      @if (examOpen) {
+        <div class="exam-overlay" (click)="closeExam()">
+        <section class="exam-modal" role="dialog" aria-modal="true" aria-label="Parcial rápido" (click)="$event.stopPropagation()">
+          <header class="exam-modal__head">
+            <div>
+              <span class="exam-modal__kicker">Parcial rápido · {{ sessionSubject || 'Sesión actual' }}</span>
+              <h3>{{ exam?.title || 'Preparando tu parcial' }}</h3>
+            </div>
+            <button type="button" class="exam-close" (click)="closeExam()" aria-label="Cerrar parcial">✕</button>
+          </header>
+
+          <div class="exam-modal__body">
+          @if (examLoading && !exam) {
+            <div class="exam-state">
+              <div class="exam-spinner"></div>
+              <p>Generando preguntas sobre lo que has visto en esta sesión...</p>
+            </div>
+          } @else if (examError) {
+            <div class="exam-state exam-state--error">
+              <p>{{ examError }}</p>
+              <button type="button" class="btn-send" (click)="generateExam()">Intentar de nuevo</button>
+            </div>
+          } @else if (exam) {
+          <p class="exam-instructions">{{ exam.instructions }}</p>
           <div class="exam-questions">
-            @for (q of e.questions; track q.id; let qIdx = $index) {
+            @for (q of exam.questions; track q.id; let qIdx = $index) {
               <div class="exam-question">
                 <span>{{ q.id }}. {{ q.question }}</span>
                 <div class="exam-options">
@@ -215,18 +235,35 @@
               </div>
             }
           </div>
-          <div class="exam-actions">
-            <button type="button" class="btn-send" (click)="submitExam()" [disabled]="examLoading">
-              {{ examLoading ? 'Evaluando...' : 'Enviar parcial' }}
-            </button>
-            @if (examScore !== null) {
-              <span class="exam-score">Nota: {{ examScore }}/100</span>
-            }
-          </div>
           @if (examFeedback) {
             <div class="exam-feedback markdown-body" [innerHTML]="examFeedback | markdownToHtml"></div>
           }
+          }
+          </div>
+
+          @if (exam && !examError) {
+            <footer class="exam-actions">
+              @if (examScore === null) {
+                <span class="exam-progress">{{ examAnsweredCount }} de {{ exam.questions.length }} respondidas</span>
+                <button
+                  type="button"
+                  class="btn-send"
+                  (click)="submitExam()"
+                  [disabled]="examAnsweredCount < exam.questions.length"
+                >
+                  Calificar parcial
+                </button>
+              } @else {
+                <span class="exam-score" [class.exam-score--low]="examScore < 80">
+                  Nota: {{ examScore }}/100 · {{ examScore >= 80 ? 'Aprobado' : 'Por reforzar' }}
+                </span>
+                <button type="button" class="exam-btn" (click)="generateExam()">Generar otro</button>
+                <button type="button" class="btn-send" (click)="closeExam()">Volver al chat</button>
+              }
+            </footer>
+          }
         </section>
+        </div>
       }
 
       <div class="messages" #messagesContainer>
